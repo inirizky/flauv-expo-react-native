@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Link, Stack, useRouter } from 'expo-router';
 import { AntDesign } from '@expo/vector-icons';
 import { useCallback, useMemo, useRef, useState } from 'react';
+import { SignUp } from '@/components/signup-button';
 
 export default function RegisterScreen() {
 
@@ -70,7 +71,7 @@ export default function RegisterScreen() {
 						autoCapitalize="none"
 					/>
 
-					{/* <SignUp username={username} password={password} full_name={fullname} /> */}
+					<SignUp username={username} password={password} fullname={fullname} />
 
 					<View style={{ alignItems: 'center' }}>
 						<Text>Already have an account?
