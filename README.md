@@ -1,50 +1,103 @@
-# Welcome to your Expo app 👋
+# Flauv Mobile - AI-Powered Plant Care Assistant
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+**Flauv Mobile** is a cross-platform mobile application built with **React Native** and **Expo**. It serves as a companion for plant enthusiasts, leveraging AI to identify plant species and monitor plant health in real-time.
 
-## Get started
+## Project Overview
 
-1. Install dependencies
+The application allows users to capture photos of plants directly through their mobile devices to receive instant identification, including care requirements such as watering and sunlight. It also enables users to maintain a personal plant library and track the growth progress of their plants over time.
 
-   ```bash
-   npm install
-   ```
+---
 
-2. Start the app
+## Key Features
 
-   ```bash
-   npx expo start
-   ```
+* **AI Plant Identification:** Instantly identify plants using the device camera.
+* **Growth Tracking & Progress:** Log plant growth stages and conditions with photo-based AI analysis.
+* **Personal Plant Library:** Save and manage a custom collection of plants.
+* **Care Instructions:** View specific care guides, including watering frequency and sunlight needs, for each plant in your collection.
+* **Secure Authentication:** Integrated login and registration system.
 
-In the output, you'll find options to open the app in a
+---
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+## Tech Stack
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+* **Framework:** React Native with Expo SDK.
+* **Navigation:** Expo Router (File-based routing).
+* **State Management:** Zustand.
+* **API Client:** Axios.
+* **Language:** TypeScript.
 
-## Get a fresh project
+---
 
-When you're ready, run:
+## Folder Structure
 
+* `app/`: Main application routes, including tabs and authentication screens.
+* `components/`: Reusable UI components such as Camera, UI Dialogs, and Drawers.
+* `lib/`: API configurations and Authentication Providers.
+* `stores/`: Global state management using Zustand.
+* `assets/`: Visual resources including images and icons.
+
+---
+
+## Getting Started
+
+### 1. Prerequisites
+
+* Node.js and npm installed.
+* Expo Go app installed on your mobile device (Android/iOS).
+
+### 2. Installation
+
+1. **Clone the Repository:**
 ```bash
-npm run reset-project
+git clone https://github.com/inirizky/flauv-expo-react-native.git
+cd flauv-expo-react-native
+
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
 
-## Learn more
+2. **Install Dependencies:**
+```bash
+npm install
 
-To learn more about developing your project with Expo, look at the following resources:
+```
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
 
-## Join the community
 
-Join our community of developers creating universal apps.
+### 3. Configuration
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+Ensure your backend server (**Flauv Express**) is running. Configure the API base URL in `lib/api.ts` to match your backend server's IP address.
+
+Create a `.env` file in the root directory and add the following variables:
+```env
+EXPO_PUBLIC_BASE_URL = "your backend url"
+
+
+```
+
+### 4. Running the App
+
+* **Start the Development Server:**
+```bash
+npx expo start
+
+```
+
+
+* Scan the QR code shown in your terminal with the **Expo Go** app (Android) or the Camera app (iOS) to launch the application.
+
+### 5. Building for Production (Optional)
+
+To build a standalone APK or IPA, use EAS Build:
+
+```bash
+eas build --platform android
+
+```
+
+---
+
+## Author
+
+* **M. Rizki Reza Pahlevi**
+
+---
