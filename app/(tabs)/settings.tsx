@@ -5,10 +5,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 
 
+
 export default function HomeScreen() {
 	const isFocused = useIsFocused()
 
-const {user} = useAuth()
+	const { user } = useAuth()
 	// console.log(result);
 
 
@@ -18,7 +19,7 @@ const {user} = useAuth()
 
 	return (
 		<SafeAreaView style={{ flex: 1, paddingHorizontal: 16 }}>
-					<View style={styles.container}>
+			<View style={styles.container}>
 				<Text style={styles.title}>My Profile 💖</Text>
 
 				<View style={styles.card}>
@@ -32,7 +33,7 @@ const {user} = useAuth()
 					<Text style={styles.value}>{user?.role}</Text>
 				</View>
 			</View>
-		
+
 
 
 		</SafeAreaView>
@@ -40,34 +41,34 @@ const {user} = useAuth()
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 24,
-    backgroundColor: "#fff",
-  },
-  center: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: "bold",
-    marginBottom: 24,
+	container: {
+		flex: 1,
+		padding: 24,
+		backgroundColor: "#fff",
+	},
+	center: {
+		flex: 1,
+		justifyContent: "center",
+		alignItems: "center",
+	},
+	title: {
+		fontSize: 24,
+		fontWeight: "bold",
+		marginBottom: 24,
 		color: "black"
-  },
-  card: {
-    padding: 20,
-    borderRadius: 12,
-    backgroundColor: "#f5f5f5",
-  },
-  label: {
-    fontSize: 12,
-    color: "black",
-    marginTop: 12,
-  },
-  value: {
-    fontSize: 16,
-    fontWeight: "500",
-  },
+	},
+	card: {
+		padding: 20,
+		borderRadius: 12,
+		backgroundColor: "#f5f5f5",
+	},
+	label: {
+		fontSize: 12,
+		color: "black",
+		marginTop: 12,
+	},
+	value: {
+		fontSize: 16,
+		fontWeight: "500",
+	},
 });
