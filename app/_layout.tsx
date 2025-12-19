@@ -8,6 +8,7 @@ import { StatusBar } from 'expo-status-bar'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { Provider as PaperProvider } from 'react-native-paper'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
+import Toast from 'react-native-toast-message';
 
 // Separate RootNavigator so we can access the AuthContext
 function RootNavigator() {
@@ -40,6 +41,7 @@ export default function RootLayout() {
   // const queryClient = new QueryClient()
 
   const queryClient = new QueryClient()
+
   return (
     <GestureHandlerRootView>
       <AuthProvider>
@@ -50,7 +52,7 @@ export default function RootLayout() {
 
 
               <RootNavigator />
-
+              <Toast />
               <StatusBar style="auto" />
             </QueryClientProvider>
           </SafeAreaProvider>
