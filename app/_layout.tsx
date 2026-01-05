@@ -18,11 +18,9 @@ function RootNavigator() {
     <Stack  >
       <Stack.Protected guard={isLoggedIn}>
         <Stack.Screen options={{ headerShown: false }} name="(tabs)" />
-        <Stack.Screen name="create" options={{
-          title: 'Take Picture'
-        }} />
+        <Stack.Screen name="create" options={{ headerShown: false }} />
         <Stack.Screen name="add-progress" options={{
-          title: 'Add Progress', headerShown: true
+          headerShown: false
         }} />
         <Stack.Screen options={{ headerShown: false }} name="result" />
         <Stack.Screen options={{ headerShown: false }} name="detail/[id]" />

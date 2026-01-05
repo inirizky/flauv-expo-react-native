@@ -1,75 +1,77 @@
 import { useAuth } from '@/lib/auth-provider';
 import { router } from 'expo-router';
-import { Keyboard, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Button } from 'react-native-paper';
-
+import { Keyboard, StyleSheet, Text, TouchableOpacity, View, ActivityIndicator } from 'react-native';
+import { useState } from 'react';
+import { Ionicons } from '@expo/vector-icons';
 
 export function SignIn({ username, password }: { username: string, password: string }) {
 	const { signIn } = useAuth();
+	const [loading, setLoading] = useState(false);
+
+	const handleSignIn = async () => {
+		Keyboard.dismiss();
+		setLoading(true);
+
+		await new Promise((r) => setTimeout(r, 150));
+
+		try {
+			await signIn(username, password);
+		} catch (error) {
+			console.error('Sign in error:', error);
+		} finally {
+			setLoading(false);
+		}
+	};
+
+	const isDisabled = !username || !password || loading;
+
 	return (
-		<Button mode='elevated' onPress={async () => {
-			Keyboard.dismiss(); // ✅ Tutup keyboard dulu
-
-			await new Promise((r) => setTimeout(r, 150)); // 
-			signIn(username, password)
-
-		}}>
-			Sign In
-		</Button>
-		// <TouchableOpacity onPress={async () => {
-		// 	Keyboard.dismiss(); // ✅ Tutup keyboard dulu
-
-		// 	await new Promise((r) => setTimeout(r, 150)); // 
-		// 	signIn(username, password)
-
-		// }}>
-		// 	<View style={styles.button}>
-
-		// 		<ThemedText style={{}} darkColor='true'>
-		// 			Sign in
-		// 		</ThemedText>
-		// 	</View>
-		// </TouchableOpacity>
-
+		<TouchableOpacity
+			style={[
+				styles.button,
+				isDisabled && styles.buttonDisabled
+			]}
+			onPress={handleSignIn}
+			disabled={isDisabled}
+			activeOpacity={0.8}
+		>
+			{loading ? (
+				<ActivityIndicator size="small" color="#ffffff" />
+			) : (
+				<>
+					<Text style={styles.buttonText}>Sign In</Text>
+					<Ionicons name="arrow-forward" size={20} color="#ffffff" />
+				</>
+			)}
+		</TouchableOpacity>
 	);
 }
 
-
-
 const styles = StyleSheet.create({
-	container: {
-		flex: 1,
-
-	},
-	contentContainer: {
-		flex: 1,
-		padding: 36,
-		alignItems: 'center',
-	},
-	titleContainer: {
-		flexDirection: 'row',
-		alignItems: 'center',
-		gap: 8,
-	},
-	stepContainer: {
-		gap: 8,
-		marginBottom: 8,
-	},
-	reactLogo: {
-		height: 178,
-		width: 290,
-		bottom: 0,
-		left: 0,
-		position: 'absolute',
-	},
 	button: {
-		display: 'flex',
 		flexDirection: 'row',
+		alignItems: 'center',
 		justifyContent: 'center',
-		gap: 4,
-		borderRadius: 8,
-		padding: 8,
-		backgroundColor: '#acafb0ff',
-
-	}
+		backgroundColor: '#10b981',
+		paddingVertical: 12,
+		paddingHorizontal: 32,
+		borderRadius: 16,
+		gap: 8,
+		elevation: 2,
+		shadowColor: '#10b981',
+		shadowOffset: { width: 0, height: 4 },
+		shadowOpacity: 0.3,
+		shadowRadius: 8,
+	},
+	buttonDisabled: {
+		backgroundColor: '#d1d5db',
+		shadowOpacity: 0,
+		elevation: 0,
+	},
+	buttonText: {
+		fontSize: 18,
+		fontWeight: '700',
+		color: '#ffffff',
+		letterSpacing: 0.5,
+	},
 });

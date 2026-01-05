@@ -250,13 +250,13 @@ const styles = StyleSheet.create({
 	},
 	matchPercent: {
 		fontSize: 16,
-		color: "white", // Ganti warna teks agar terlihat di background hijau
+		color: "white",
 		backgroundColor: "#379f20ff",
 		paddingHorizontal: 16,
-		paddingVertical: 4, // Tambahkan padding vertikal
+		paddingVertical: 4,
 		borderRadius: 24,
 		width: "auto",
-		overflow: 'hidden' // Penting untuk memastikan border radius bekerja
+		overflow: 'hidden'
 	},
 	dropdownLabel: {
 		marginBottom: 4,
@@ -275,7 +275,6 @@ const styles = StyleSheet.create({
 		right: 0,
 		paddingHorizontal: 16,
 		paddingVertical: 16,
-		// Background yang lebih solid agar tombol terlihat jelas
 		backgroundColor: "white",
 		borderTopWidth: 1,
 		borderTopColor: '#eee',

@@ -1,5 +1,5 @@
 import { useResult } from '@/stores/useResult';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useQueryClient } from '@tanstack/react-query';
 import { CameraType, CameraView, useCameraPermissions } from 'expo-camera';
 import { Image } from 'expo-image';
@@ -7,34 +7,50 @@ import * as ImageManipulator from 'expo-image-manipulator';
 import { useRouter } from 'expo-router';
 import * as SecureStore from "expo-secure-store";
 import { useRef, useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Button, TextInput } from 'react-native-paper';
+import {
+	KeyboardAvoidingView,
+	Platform,
+	ScrollView,
+	StyleSheet,
+	Text,
+	TouchableOpacity,
+	View,
+	TextInput,
+	ActivityIndicator
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-
-export default function AddProgrees() {
+export default function AddProgress() {
 	const cameraRef = useRef(null);
-	const drawer = useRef(null)
 	const [facing, setFacing] = useState<CameraType>('back');
 	const [permission, requestPermission] = useCameraPermissions();
 	const [photoUri, setPhotoUri] = useState(null);
 	const [loading, setLoading] = useState(false);
-	const [notes, setNotes] = useState("")
-	const router = useRouter()
-	const [openCamera, setOpenCamera] = useState(false)
+	const [notes, setNotes] = useState("");
+	const router = useRouter();
 	const { result } = useResult();
 	const data = result;
-	const queryClient = useQueryClient()
+	const queryClient = useQueryClient();
+
 	if (!permission) {
-		// Camera permissions are still loading.
 		return <View />;
 	}
 
 	if (!permission.granted) {
-		// Camera permissions are not granted yet.
 		return (
-			<View style={{ flex: 1, justifyContent: 'center', padding: 24 }}>
-				<Text style={styles.message}>We need your permission to show the camera</Text>
-				<Button onPress={requestPermission}>Grant Permission</Button>
+			<View style={styles.permissionContainer}>
+				<View style={styles.permissionContent}>
+					<View style={styles.iconCircle}>
+						<Ionicons name="camera" size={48} color="#10b981" />
+					</View>
+					<Text style={styles.permissionTitle}>Camera Access Required</Text>
+					<Text style={styles.permissionMessage}>
+						We need camera access to track your plant progress
+					</Text>
+					<TouchableOpacity style={styles.grantButton} onPress={requestPermission}>
+						<Text style={styles.grantButtonText}>Grant Permission</Text>
+					</TouchableOpacity>
+				</View>
 			</View>
 		);
 	}
@@ -42,29 +58,27 @@ export default function AddProgrees() {
 	const takePicture = async () => {
 		if (cameraRef.current) {
 			const photo = await cameraRef.current.takePictureAsync();
-
 			const compressed = await ImageManipulator.manipulateAsync(
 				photo.uri,
 				[{ resize: { width: 800 } }],
 				{
-					compress: 0.5, // nilai antara 0 - 1
+					compress: 0.5,
 					format: ImageManipulator.SaveFormat.JPEG,
 				}
 			);
 			setPhotoUri(compressed.uri);
-			setOpenCamera(false)
-			// drawer.current?.expand()
-			// console.log(photo);
-
 		}
 	};
 
+	const toggleCameraFacing = () => {
+		setFacing(current => (current === 'back' ? 'front' : 'back'));
+	};
 
+	const retakePhoto = () => {
+		setPhotoUri(null);
+		setNotes("");
+	};
 
-
-
-
-	// console.log(result)
 	const generateProgress = async () => {
 		setLoading(true);
 
@@ -75,7 +89,6 @@ export default function AddProgrees() {
 				return;
 			}
 
-			// Validasi data plant
 			if (!data?.id || !data?.name) {
 				alert('Plant data not found');
 				setLoading(false);
@@ -83,23 +96,15 @@ export default function AddProgrees() {
 			}
 
 			const formData = new FormData();
-
-			// Tambahkan file foto
 			formData.append("file", {
 				uri: photoUri,
 				name: "photo.jpg",
 				type: "image/jpeg",
 			});
-
-			// Tambahkan notes (string, bukan object)
 			formData.append("notes", notes || "");
-
-			// Tambahkan name dari data plant
 			formData.append("name", data.name);
 			formData.append("plantId", data.id);
 
-			// Tambahkan progress history (jika ada)
-			// Format sebagai JSON string jika backend expect JSON
 			const progressHistory = data.plantProgress || [];
 			const filteredHistory = progressHistory.slice(-3).map((item: any) => ({
 				growthStage: item.growthStage,
@@ -109,15 +114,12 @@ export default function AddProgrees() {
 			formData.append("progress", JSON.stringify(filteredHistory));
 
 			const token = await SecureStore.getItemAsync("auth-token");
-
-			// Fix URL - tambahkan plantId parameter
 			const res = await fetch(
 				`${process.env.EXPO_PUBLIC_BASE_URL}/api/plant-progress/generate`,
 				{
 					method: "POST",
 					headers: {
 						Authorization: `Bearer ${token}`,
-						// Jangan set Content-Type, biar FormData yang handle
 					},
 					body: formData,
 				}
@@ -125,20 +127,14 @@ export default function AddProgrees() {
 
 			const responseData = await res.json();
 
-			// console.log(responseData);
-
-
 			if (responseData.status === 200) {
-				// Success - navigate ke result
 				queryClient.invalidateQueries({ queryKey: ['detailPlant', data.id] });
-				// alert("ASIK")
+				queryClient.invalidateQueries({ queryKey: ['plantProgressList'] });
 				router.replace({
 					pathname: '/detail/[id]',
 					params: { id: data.id }
-				})
-
+				});
 			} else {
-				// Handle error dari backend
 				alert(responseData.message || 'Failed to generate progress');
 			}
 		} catch (error) {
@@ -149,165 +145,466 @@ export default function AddProgrees() {
 		}
 	};
 
-
 	return (
-		<View style={{ flex: 1 }}>
-
-			{!photoUri && (
-				<View style={{ flex: 1, justifyContent: "space-between" }}>
-					{/* Camera */}
-					<View style={{ height: 550 }}>
-						<CameraView style={styles.camera} facing={facing} ref={cameraRef} />
-					</View>
-
-					{/* Bottom bar */}
-					<View
-						style={{
-							flexDirection: "row",
-							alignItems: "center",
-							justifyContent: "space-between",
-							paddingHorizontal: 24,
-							paddingBottom: 24,
-						}}
-					>
-						<Ionicons name="image" size={32} />
-
-						<TouchableOpacity
-							onPress={takePicture}
-							style={{
-								borderColor: "black",
-								borderWidth: 2,
-								borderRadius: 100,
-								padding: 8,
-							}}
-						>
-							<Ionicons name="aperture-outline" size={64} />
-						</TouchableOpacity>
-
-						<Ionicons name="sync-circle" size={40} />
-					</View>
-				</View>
-			)}
-
-
-			{photoUri && (
-
-				<KeyboardAvoidingView
-					style={{ flex: 1 }}
-					behavior={Platform.OS === "ios" ? "padding" : "height"}
-				>
-					<ScrollView contentContainerStyle={{ flexGrow: 1 }}>
-						<View style={{ height: 500, width: "100%" }}>
-							<Image
-								transition={500}
-								source={{ uri: photoUri }}
-								style={{
-									height: "100%",
-									width: "100%",
-									borderRadius: 8,
-								}}
-								contentFit="cover"
-							/>
+		<View style={styles.container}>
+			{!photoUri ? (
+				// Camera View
+				<SafeAreaView style={styles.cameraContainer}>
+					<CameraView style={styles.camera} facing={facing} ref={cameraRef}>
+						{/* Top Info */}
+						<View style={styles.topOverlay}>
+							<View style={styles.infoCard}>
+								<MaterialCommunityIcons name="leaf" size={20} color="#10b981" />
+								<Text style={styles.infoText}>Track progress for {data?.name}</Text>
+							</View>
 						</View>
 
-						{/* Form */}
-						<View style={{ padding: 24 }}>
-							<TextInput
-								mode="flat"
-								onChangeText={setNotes}
-								placeholder="Notes"
-								autoCapitalize="none"
-							/>
+						{/* Frame Guide */}
+						<View style={styles.frameGuide}>
+							<View style={[styles.frameCorner, styles.cornerTopLeft]} />
+							<View style={[styles.frameCorner, styles.cornerTopRight]} />
+							<View style={[styles.frameCorner, styles.cornerBottomLeft]} />
+							<View style={[styles.frameCorner, styles.cornerBottomRight]} />
 						</View>
-					</ScrollView>
+					</CameraView>
 
-					{/* Tombol fixed bawah */}
-					<View
-						style={{
-							padding: 16,
-							backgroundColor: "white",
-							borderTopWidth: 1,
-							borderTopColor: "#ddd",
-						}}
-					>
-						<TouchableOpacity
-							style={{
-								backgroundColor: "#379f20ff",
-								width: "100%",
-								alignItems: "center",
-								justifyContent: "center",
-								padding: 14,
-								borderRadius: 10,
-							}}
-							disabled={loading}
-							onPress={generateProgress}
-						>
-							<Text style={{ color: "white", fontSize: 16 }}>
-								{loading ? "Loading..." : "Add Progress"}
-							</Text>
-						</TouchableOpacity>
+					{/* Controls */}
+					<View style={styles.controlsContainer}>
+						<View style={styles.controlsContent}>
+							<TouchableOpacity style={styles.controlButton} onPress={() => router.back()}>
+								<View style={styles.iconButton}>
+									<Ionicons name="close" size={28} color="#1f2937" />
+								</View>
+								<Text style={styles.controlLabel}>Cancel</Text>
+							</TouchableOpacity>
+
+							<TouchableOpacity onPress={takePicture} style={styles.captureButtonContainer}>
+								<View style={styles.captureButtonOuter}>
+									<View style={styles.captureButtonInner} />
+								</View>
+							</TouchableOpacity>
+
+							<TouchableOpacity style={styles.controlButton} onPress={toggleCameraFacing}>
+								<View style={styles.iconButton}>
+									<Ionicons name="camera-reverse" size={28} color="#1f2937" />
+								</View>
+								<Text style={styles.controlLabel}>Flip</Text>
+							</TouchableOpacity>
+						</View>
 					</View>
-				</KeyboardAvoidingView>
+				</SafeAreaView>
+			) : (
+				// Preview & Form
+				<SafeAreaView style={styles.previewContainer}>
+					{/* Back Button */}
+					<TouchableOpacity style={styles.backButton} onPress={retakePhoto}>
+						<Ionicons name="arrow-back" size={24} color="white" />
+					</TouchableOpacity>
+
+					<KeyboardAvoidingView
+						style={styles.keyboardView}
+						behavior={Platform.OS === "ios" ? "padding" : "height"}
+					>
+						<ScrollView
+							contentContainerStyle={styles.scrollContent}
+							showsVerticalScrollIndicator={false}
+						>
+							{/* Photo Preview */}
+							<View style={styles.photoContainer}>
+								<Image
+									source={{ uri: photoUri }}
+									style={styles.photo}
+									contentFit="cover"
+								/>
+							</View>
+
+							{/* Form Section */}
+							<View style={styles.formSection}>
+								{/* Plant Info */}
+								<View style={styles.plantInfoCard}>
+									<View style={styles.plantInfoHeader}>
+										<MaterialCommunityIcons name="leaf" size={24} color="#10b981" />
+										<Text style={styles.plantInfoTitle}>{data?.name}</Text>
+									</View>
+									<Text style={styles.plantInfoSubtitle}>Adding new progress entry</Text>
+								</View>
+
+								{/* Notes Input */}
+								<View style={styles.inputContainer}>
+									<Text style={styles.inputLabel}>Notes (Optional)</Text>
+									<View style={styles.inputWrapper}>
+										<Ionicons name="create-outline" size={20} color="#9ca3af" style={styles.inputIcon} />
+										<TextInput
+											value={notes}
+											onChangeText={setNotes}
+											placeholder="Add notes about this progress..."
+											multiline
+											numberOfLines={3}
+											style={styles.textInput}
+											placeholderTextColor="#9ca3af"
+										/>
+									</View>
+								</View>
+
+								{/* Info Box */}
+								<View style={styles.infoBox}>
+									<Ionicons name="information-circle-outline" size={20} color="#10b981" />
+									<Text style={styles.infoBoxText}>
+										Our AI will analyze the photo and automatically detect growth stage, condition, and progress type
+									</Text>
+								</View>
+							</View>
+						</ScrollView>
+
+						{/* Bottom Actions */}
+						<View style={styles.bottomActions}>
+							<TouchableOpacity
+								style={styles.retakeButton}
+								onPress={retakePhoto}
+								disabled={loading}
+							>
+								<Ionicons name="refresh" size={20} color="#ef4444" />
+								<Text style={styles.retakeButtonText}>Retake</Text>
+							</TouchableOpacity>
+
+							<TouchableOpacity
+								style={[styles.submitButton, loading && styles.submitButtonDisabled]}
+								onPress={generateProgress}
+								disabled={loading}
+							>
+								{loading ? (
+									<ActivityIndicator size="small" color="#ffffff" />
+								) : (
+									<>
+										<MaterialCommunityIcons name="check" size={20} color="white" />
+										<Text style={styles.submitButtonText}>Add Progress</Text>
+									</>
+								)}
+							</TouchableOpacity>
+						</View>
+					</KeyboardAvoidingView>
+				</SafeAreaView>
 			)}
 		</View>
-
 	);
 }
 
-
-
 const styles = StyleSheet.create({
-	backButton: {
-		position: 'absolute',
-		top: 40, // sesuaikan dengan StatusBar jika perlu
-		left: 20,
-		zIndex: 10,
-		flexDirection: 'row',
-		alignItems: 'center',
-		padding: 8,
-		backgroundColor: 'rgba(0,0,0,0.4)',
-		borderRadius: 20,
-	},
-	previewContainer: {
-		flex: 1,
-		alignItems: "center",
-		padding: 20,
-	},
-	preview: {
-		width: "100%",
-		height: 400,
-		borderRadius: 10,
-	},
 	container: {
 		flex: 1,
-		// justifyContent: 'center',
-
+		backgroundColor: '#000000',
 	},
-	message: {
+	permissionContainer: {
+		flex: 1,
+		justifyContent: 'center',
+		alignItems: 'center',
+		backgroundColor: '#ffffff',
+		padding: 24,
+	},
+	permissionContent: {
+		alignItems: 'center',
+		maxWidth: 320,
+	},
+	iconCircle: {
+		width: 100,
+		height: 100,
+		borderRadius: 50,
+		backgroundColor: '#d1fae5',
+		justifyContent: 'center',
+		alignItems: 'center',
+		marginBottom: 24,
+	},
+	permissionTitle: {
+		fontSize: 24,
+		fontWeight: '700',
+		color: '#1f2937',
+		marginBottom: 12,
 		textAlign: 'center',
-		paddingBottom: 10,
+	},
+	permissionMessage: {
+		fontSize: 16,
+		color: '#6b7280',
+		textAlign: 'center',
+		lineHeight: 24,
+		marginBottom: 32,
+	},
+	grantButton: {
+		backgroundColor: '#10b981',
+		paddingHorizontal: 32,
+		paddingVertical: 16,
+		borderRadius: 12,
+		width: '100%',
+	},
+	grantButtonText: {
+		color: '#ffffff',
+		fontSize: 16,
+		fontWeight: '600',
+		textAlign: 'center',
+	},
+	cameraContainer: {
+		flex: 1,
 	},
 	camera: {
 		flex: 1,
-		height: 600,
-
 	},
-	buttonContainer: {
+	topOverlay: {
 		position: 'absolute',
-		bottom: 64,
-		flexDirection: 'row',
-		backgroundColor: 'transparent',
-		width: '100%',
-		paddingHorizontal: 64,
-	},
-	button: {
-
+		top: 20,
+		left: 20,
+		right: 20,
 		alignItems: 'center',
-		padding: 8,
 	},
-	text: {
-		fontSize: 24,
-		fontWeight: 'bold',
-		color: 'white',
+	infoCard: {
+		flexDirection: 'row',
+		alignItems: 'center',
+		backgroundColor: 'rgba(255, 255, 255, 0.95)',
+		paddingHorizontal: 20,
+		paddingVertical: 12,
+		borderRadius: 24,
+		gap: 8,
+	},
+	infoText: {
+		fontSize: 14,
+		fontWeight: '600',
+		color: '#1f2937',
+	},
+	frameGuide: {
+		position: 'absolute',
+		top: '20%',
+		left: '10%',
+		right: '10%',
+		bottom: '30%',
+	},
+	frameCorner: {
+		position: 'absolute',
+		width: 40,
+		height: 40,
+		borderColor: '#10b981',
+		borderWidth: 3,
+	},
+	cornerTopLeft: {
+		top: 0,
+		left: 0,
+		borderRightWidth: 0,
+		borderBottomWidth: 0,
+		borderTopLeftRadius: 8,
+	},
+	cornerTopRight: {
+		top: 0,
+		right: 0,
+		borderLeftWidth: 0,
+		borderBottomWidth: 0,
+		borderTopRightRadius: 8,
+	},
+	cornerBottomLeft: {
+		bottom: 0,
+		left: 0,
+		borderRightWidth: 0,
+		borderTopWidth: 0,
+		borderBottomLeftRadius: 8,
+	},
+	cornerBottomRight: {
+		bottom: 0,
+		right: 0,
+		borderLeftWidth: 0,
+		borderTopWidth: 0,
+		borderBottomRightRadius: 8,
+	},
+	controlsContainer: {
+		backgroundColor: '#ffffff',
+		paddingTop: 24,
+		paddingBottom: 40,
+		borderTopLeftRadius: 24,
+		borderTopRightRadius: 24,
+	},
+	controlsContent: {
+		flexDirection: 'row',
+		alignItems: 'center',
+		justifyContent: 'space-between',
+		paddingHorizontal: 40,
+	},
+	controlButton: {
+		alignItems: 'center',
+		gap: 8,
+	},
+	iconButton: {
+		width: 56,
+		height: 56,
+		borderRadius: 28,
+		backgroundColor: '#f3f4f6',
+		justifyContent: 'center',
+		alignItems: 'center',
+	},
+	controlLabel: {
+		fontSize: 12,
+		fontWeight: '500',
+		color: '#6b7280',
+	},
+	captureButtonContainer: {
+		padding: 4,
+	},
+	captureButtonOuter: {
+		width: 80,
+		height: 80,
+		borderRadius: 40,
+		backgroundColor: '#ffffff',
+		borderWidth: 4,
+		borderColor: '#10b981',
+		justifyContent: 'center',
+		alignItems: 'center',
+	},
+	captureButtonInner: {
+		width: 64,
+		height: 64,
+		borderRadius: 32,
+		backgroundColor: '#10b981',
+	},
+	previewContainer: {
+		flex: 1,
+		backgroundColor: '#ffffff',
+	},
+	backButton: {
+		position: 'absolute',
+		top: 48,
+		left: 20,
+		zIndex: 10,
+		padding: 10,
+		backgroundColor: 'rgba(0,0,0,0.5)',
+		borderRadius: 24,
+	},
+	keyboardView: {
+		flex: 1,
+	},
+	scrollContent: {
+		paddingBottom: 120,
+	},
+	photoContainer: {
+		width: '100%',
+		height: 400,
+		backgroundColor: '#f3f4f6',
+	},
+	photo: {
+		width: '100%',
+		height: '100%',
+	},
+	formSection: {
+		padding: 20,
+		gap: 20,
+	},
+	plantInfoCard: {
+		backgroundColor: '#f0fdf4',
+		padding: 16,
+		borderRadius: 12,
+		borderLeftWidth: 4,
+		borderLeftColor: '#10b981',
+	},
+	plantInfoHeader: {
+		flexDirection: 'row',
+		alignItems: 'center',
+		gap: 12,
+		marginBottom: 4,
+	},
+	plantInfoTitle: {
+		fontSize: 18,
+		fontWeight: '700',
+		color: '#1f2937',
+	},
+	plantInfoSubtitle: {
+		fontSize: 13,
+		color: '#6b7280',
+		marginLeft: 36,
+	},
+	inputContainer: {
+		gap: 8,
+	},
+	inputLabel: {
+		fontSize: 14,
+		fontWeight: '600',
+		color: '#374151',
+		marginLeft: 4,
+	},
+	inputWrapper: {
+		flexDirection: 'row',
+		alignItems: 'flex-start',
+		backgroundColor: '#ffffff',
+		borderRadius: 12,
+		borderWidth: 2,
+		borderColor: '#d1d5db',
+		paddingHorizontal: 16,
+		paddingVertical: 12,
+	},
+	inputIcon: {
+		marginRight: 12,
+		marginTop: 2,
+	},
+	textInput: {
+		flex: 1,
+		fontSize: 16,
+		color: '#111827',
+		fontWeight: '500',
+		minHeight: 80,
+		textAlignVertical: 'top',
+	},
+	infoBox: {
+		flexDirection: 'row',
+		alignItems: 'flex-start',
+		backgroundColor: '#f0fdf4',
+		padding: 12,
+		borderRadius: 8,
+		gap: 12,
+	},
+	infoBoxText: {
+		flex: 1,
+		fontSize: 13,
+		color: '#047857',
+		lineHeight: 18,
+	},
+	bottomActions: {
+		position: 'absolute',
+		bottom: 0,
+		left: 0,
+		right: 0,
+		backgroundColor: '#ffffff',
+		paddingHorizontal: 20,
+		paddingVertical: 16,
+		borderTopWidth: 1,
+		borderTopColor: '#f3f4f6',
+		flexDirection: 'row',
+		gap: 12,
+	},
+	retakeButton: {
+		flex: 1,
+		flexDirection: 'row',
+		alignItems: 'center',
+		justifyContent: 'center',
+		backgroundColor: '#ffffff',
+		paddingVertical: 16,
+		borderRadius: 12,
+		gap: 8,
+		borderWidth: 2,
+		borderColor: '#fee2e2',
+	},
+	retakeButtonText: {
+		fontSize: 16,
+		fontWeight: '600',
+		color: '#ef4444',
+	},
+	submitButton: {
+		flex: 2,
+		flexDirection: 'row',
+		alignItems: 'center',
+		justifyContent: 'center',
+		backgroundColor: '#10b981',
+		paddingVertical: 16,
+		borderRadius: 12,
+		gap: 8,
+	},
+	submitButtonDisabled: {
+		backgroundColor: '#d1d5db',
+	},
+	submitButtonText: {
+		fontSize: 16,
+		fontWeight: '700',
+		color: '#ffffff',
 	},
 });

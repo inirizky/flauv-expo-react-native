@@ -1,64 +1,78 @@
-import { TouchableOpacity, StyleSheet, View, Linking, ScrollView, FlatList } from 'react-native';
+import { TouchableOpacity, StyleSheet, View, ScrollView } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { AntDesign, Entypo, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { QueryClient, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Image } from 'expo-image';
 import { api } from '@/lib/api';
 import { useCallback, useRef, useState } from 'react';
 import { Drawer } from '@/components/ui/drawer';
-import { Button, Dialog, Portal, Text, } from 'react-native-paper';
+import { Button, Dialog, Portal, Text, List } from 'react-native-paper';
 import { useResult } from '@/stores/useResult';
 
 export default function DetailScreen() {
-
 	const { id } = useLocalSearchParams();
-	const [isSheetOpen, setIsSheetOpen] = useState(false)
+	const [isSheetOpen, setIsSheetOpen] = useState(false);
 	const [visible, setVisible] = useState(false);
-	const { setResult } = useResult()
-	const drawer = useRef(null)
-	// callbacks
+	const { setResult } = useResult();
+	const drawer = useRef(null);
+	const [expanded, setExpanded] = useState(true);
 	const handleSheetChanges = useCallback((index: number) => {
 		console.log('handleSheetChanges', index);
 		setIsSheetOpen(index > -1);
 	}, []);
 
 	const openSheet = () => {
-		drawer.current?.expand()
-		setIsSheetOpen(!isSheetOpen)
-	}
-	const queryClient = useQueryClient()
+		drawer.current?.expand();
+		setIsSheetOpen(!isSheetOpen);
+	};
 
+	const queryClient = useQueryClient();
 	const router = useRouter();
+
 	const { data } = useQuery({
 		queryKey: ['detailPlant', id],
-		queryFn: async () => (await api.get(`/plant/${id}`
-		)).data.data,
-		// staleTime: 1000 * 60 * 5,
-		enabled: !!id
-
+		queryFn: async () => (await api.get(`/plant/${id}`)).data.data,
+		enabled: !!id,
 	});
-	// const { data: plantProgress } = useQuery({
-	// 	queryKey: ['plantProgress', id],
-	// 	queryFn: async () => (await api.get(`/plant-progress/${id}`
-	// 	)).data.data,
-	// 	enabled: !!id
-	// });
 
 	const mutation = useMutation({
 		mutationFn: (id) => {
-			return api.delete(`/plant/${id}`)
+			return api.delete(`/plant/${id}`);
 		},
 		onSuccess: async () => {
 			queryClient.invalidateQueries({ queryKey: ['plantList'] });
-			router.back()
+			router.back();
 		},
-	})
+	});
 
-	console.log(data);
+	// Helper function untuk icon progress
+	const getProgressIcon = (progressType: string) => {
+		const iconMap: { [key: string]: string } = {
+			watered: 'water',
+			fertilized: 'sprout',
+			repotted: 'flower',
+			pruned: 'content-cut',
+			'new leaf': 'leaf',
+			'new flower': 'flower-tulip',
+			'leaf unfurling': 'leaf',
+			blooming: 'flower',
+			'pest treated': 'bug',
+		};
+		return iconMap[progressType.toLowerCase()] || 'camera-plus';
+	};
 
+	// Helper function untuk warna icon
+	const getProgressColor = (progressType: string) => {
+		const colorMap: { [key: string]: string } = {
+			watered: '#3b82f6',
+			fertilized: '#10b981',
+			repotted: '#8b5cf6',
+			'new leaf': '#22c55e',
+			'new flower': '#ec4899',
+		};
+		return colorMap[progressType.toLowerCase()] || '#6b7280';
+	};
 
-	// PERUBAHAN: Fungsi pembantu untuk menentukan style badge berdasarkan kondisi
 	const getConditionStyle = (condition: string) => {
 		switch (condition) {
 			case 'healthy':
@@ -78,118 +92,189 @@ export default function DetailScreen() {
 		}
 	};
 
+	// Calculate watering frequency text
+	const getWateringFrequencyText = () => {
+		if (!data?.water_frequency) return 'Unknown';
+		if (data.water_frequency === 1) return 'Daily';
+		if (data.water_frequency === 7) return 'Weekly';
+		if (data.water_frequency === 14) return 'Bi-weekly';
+		if (data.water_frequency >= 30) return 'Monthly';
+		return `Every ${data.water_frequency} days`;
+	};
+
 	return (
 		<View style={styles.container}>
-			<ScrollView style={{ marginBottom: 90 }}>
-				<View style={{ width: '100%', height: 500, overflow: 'hidden' }}>
+			<ScrollView style={{ marginBottom: 90 }} showsVerticalScrollIndicator={false}>
+				{/* Hero Image */}
+				<View style={styles.heroImageContainer}>
 					<Image
 						source={{ uri: `${process.env.EXPO_PUBLIC_BASE_URL}${data?.imageUrl}` }}
-						style={{ width: '100%', height: '100%' }}
+						style={styles.heroImage}
+						contentFit="cover"
 					/>
 				</View>
 
-				<View style={{ padding: 16, gap: 16 }}>
-					<View style={{ width: '80%', gap: 4 }}>
-						<Text variant='headlineLarge' style={styles.name} >{data?.name}</Text>
+				<View style={styles.contentContainer}>
+					{/* Plant Name & Latin Name */}
+					<View style={styles.nameSection}>
+						<Text variant="headlineLarge" style={styles.plantName}>
+							{data?.name}
+						</Text>
+						<Text variant="bodyMedium" style={styles.latinName}>
+							{data?.latinName || 'Scientific name'}
+						</Text>
 					</View>
 
-					{/* AMAN */}
-					<View style={{ flexDirection: 'row', justifyContent: 'center', gap: 8 }}>
-						<View style={{ backgroundColor: '#e7fbe4ff', paddingVertical: 8, paddingHorizontal: 24, justifyContent: 'center', alignItems: 'center', gap: 8 }}>
-							<Ionicons name="water" size={24} />
-							<Text variant='labelSmall' style={{ fontSize: 12, color: 'black' }}>{data?.water_frequency} Days</Text>
+					{/* Quick Info Cards */}
+					<View style={styles.quickInfoContainer}>
+						<View style={styles.infoCard}>
+							<Ionicons name="water" size={28} color="#3b82f6" />
+							<Text style={styles.infoLabel}>{getWateringFrequencyText()}</Text>
 						</View>
-						<View style={{ backgroundColor: '#e7fbe4ff', paddingVertical: 8, paddingHorizontal: 24, justifyContent: 'center', alignItems: 'center' }}>
-							<Ionicons name="sunny" size={24} />
-							<Text variant='labelSmall' style={{ fontSize: 12, color: 'black' }}>{data?.sunlight}</Text>
+						<View style={styles.infoCard}>
+							<Ionicons name="sunny" size={28} color="#f59e0b" />
+							<Text style={styles.infoLabel}>{data?.sunlight || 'Unknown'}</Text>
 						</View>
-						<View style={{ backgroundColor: '#e7fbe4ff', paddingVertical: 8, paddingHorizontal: 24, justifyContent: 'center', alignItems: 'center' }}>
-							<Ionicons name="moon" size={24} />
-							<Text variant='labelSmall' style={{ fontSize: 12, color: 'black' }}>{data?.soilType} </Text>
+						<View style={styles.infoCard}>
+							<MaterialCommunityIcons name="sprout" size={28} color="#10b981" />
+							<Text style={styles.infoLabel}>{data?.soilType || 'Loamy'}</Text>
 						</View>
 					</View>
 
-					{data?.care_instructions && (
-						<View style={styles.careInstructionContainer}>
-							<Text style={styles.careInstructionTitle}>Care Instructions:</Text>
-							{data?.care_instructions.split('. ').filter(Boolean).map((i, index) => (
-								<Text style={styles.careInstructionText} key={index}>{index + 1}. {i}.</Text>
-							))}
-						</View>
-					)}
+					{/* Accordion Sections */}
+					<View style={styles.accordionContainer}>
+						<List.Accordion
+							expanded={expanded}
+							title="Care Instructions"
+							titleStyle={styles.accordionTitle}
+							onPress={() => setExpanded(!expanded)}
+							left={(props) => <List.Icon {...props} icon="spa" color="#953bf6ff" />}
+							theme={{
+								colors: {
+									background: 'transparent',
+								},
+							}}
+							style={styles.accordion}
 
-					<View style={{ gap: 8 }}>
-						<View>
-							<Text style={styles.careInstructionTitle}>Progress Plant</Text>
-						</View>
-						{data?.plantProgress?.map((item: any, index: number) => {
-							// PERUBAHAN: Panggil fungsi pembantu untuk mendapatkan style
-							const { badge: badgeStyle, text: textStyle } = getConditionStyle(item?.condition);
+						>
+							<View style={styles.accordionContent}>
+								<Text style={styles.accordionText}>
+									{data?.care_instructions}
+								</Text>
+							</View>
+						</List.Accordion>
+					</View>
 
-							return (
-								<View key={index} style={styles.careInstructionContainer}>
-									<View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-										<View style={{ gap: 4, alignItems: 'flex-start' }}>
-											<Text style={{ color: 'black', fontSize: 12 }}>{new Date(item?.createdAt).toLocaleString("id-ID", { dateStyle: "long", timeStyle: "short" })}</Text>
-											{item.notes && <Text style={{ fontSize: 14, fontWeight: "600", color: 'black' }}>{item.notes}</Text>}
-											<View style={{ flexDirection: 'row', gap: 8 }}>
-												<View style={{ flexDirection: 'row', alignItems: 'center' }}>
-													<MaterialCommunityIcons name="flower" size={16} color="black" />
-													<Text style={{ fontSize: 12, fontWeight: "600", color: 'black' }}>{item.growthStage}</Text>
-												</View>
-												<View style={{ flexDirection: 'row', alignItems: 'center' }}>
-													<MaterialCommunityIcons name="flower" size={16} color="black" />
-													<Text style={{ fontSize: 12, fontWeight: "600", color: 'black' }}>{item.progressType}</Text>
-												</View>
+					{/* Growth Timeline */}
+					<View style={styles.timelineSection}>
+						<Text style={styles.sectionTitle}>Growth Timeline</Text>
+						{data?.plantProgress && data.plantProgress.length > 0 ? (
+							data.plantProgress.map((item: any, index: number) => {
+								const { badge: badgeStyle, text: textStyle } = getConditionStyle(item?.condition);
+								const iconName = getProgressIcon(item?.progressType);
+								const iconColor = getProgressColor(item?.progressType);
+
+								return (
+									<View key={index} style={styles.timelineItem}>
+										<View style={styles.timelineIconContainer}>
+											<View style={[styles.timelineIcon, { backgroundColor: iconColor + '20' }]}>
+												<MaterialCommunityIcons name={iconName} size={20} color={iconColor} />
 											</View>
+											{index < data.plantProgress.length - 1 && <View style={styles.timelineLine} />}
 										</View>
 
-										<View>
-											{/* PERUBAHAN: Terapkan style yang sudah dipilih */}
-											<View style={[styles.badge, badgeStyle]}>
-												<Text style={[styles.textDefault, textStyle]}>
-													{item?.condition}
-												</Text>
+										<View style={styles.timelineContent}>
+											<View style={styles.timelineHeader}>
+												<Text style={styles.timelineTitle}>{item?.progressType}</Text>
+												<View style={[styles.conditionBadge, badgeStyle]}>
+													<Text style={[styles.conditionText, textStyle]}>{item?.condition}</Text>
+												</View>
 											</View>
+											<Text style={styles.timelineDate}>
+												{new Date(item?.createdAt).toLocaleDateString('en-US', {
+													month: 'short',
+													day: 'numeric',
+													year: 'numeric',
+												})}
+											</Text>
+											{item?.notes && <Text style={styles.timelineNotes}>{item.notes}</Text>}
 										</View>
 									</View>
-								</View>
-							)
-						})}
+								);
+							})
+						) : (
+							<View style={styles.emptyTimeline}>
+								<MaterialCommunityIcons name="timeline-clock" size={48} color="#d1d5db" />
+								<Text style={styles.emptyTimelineText}>No growth records yet</Text>
+								<Text style={styles.emptyTimelineSubtext}>Start tracking your plant's journey!</Text>
+							</View>
+						)}
 					</View>
 				</View>
 			</ScrollView>
 
-			<View style={{ position: 'absolute', top: 40, left: 20, right: 20, zIndex: 10, flexDirection: 'row', justifyContent: 'space-between' }}>
-				<TouchableOpacity style={{ backgroundColor: 'rgba(0,0,0,0.4)', padding: 8, borderRadius: 20 }} onPress={() => router.back()} activeOpacity={0.7}>
+			{/* Back & Options Buttons */}
+			<View style={styles.headerButtons}>
+				<TouchableOpacity style={styles.iconButton} onPress={() => router.back()} activeOpacity={0.7}>
 					<Ionicons name="arrow-back" size={24} color="white" />
 				</TouchableOpacity>
-				<TouchableOpacity style={{ backgroundColor: 'rgba(0,0,0,0.4)', padding: 8, borderRadius: 20 }} onPress={openSheet} activeOpacity={0.7}>
-					<Ionicons name="options" size={24} color="white" />
+				<TouchableOpacity style={styles.iconButton} onPress={openSheet} activeOpacity={0.7}>
+					<Ionicons name="ellipsis-vertical" size={24} color="white" />
 				</TouchableOpacity>
 			</View>
 
-			<View style={styles.saveButtonFixedContainer}>
-				<TouchableOpacity style={styles.saveButton} onPress={() => { setResult({ ...data }); router.push({ pathname: '/add-progress' }) }} activeOpacity={0.8}>
-					<Text style={styles.saveButtonText}>Add Progress</Text>
+			{/* Add Progress Button */}
+			<View style={styles.bottomButtonContainer}>
+				<TouchableOpacity
+					style={styles.addProgressButton}
+					onPress={() => {
+						setResult({ ...data });
+						router.push({ pathname: '/add-progress' });
+					}}
+					activeOpacity={0.8}
+				>
+					<MaterialCommunityIcons name="plus" size={24} color="white" />
+					<Text style={styles.addProgressText}>Add Progress</Text>
 				</TouchableOpacity>
 			</View>
 
+			{/* Delete Dialog */}
 			<Portal>
 				<Dialog visible={visible} onDismiss={() => setVisible(!visible)}>
-					<Dialog.Content><Text>Are you sure wanna delete {data?.name} </Text></Dialog.Content>
+					<Dialog.Title>Delete Plant</Dialog.Title>
+					<Dialog.Content>
+						<Text>Are you sure you want to delete {data?.name}?</Text>
+					</Dialog.Content>
 					<Dialog.Actions>
 						<Button onPress={() => setVisible(!visible)}>Cancel</Button>
-						<Button onPress={() => mutation.mutate(data?.id)}>Delete</Button>
+						<Button onPress={() => mutation.mutate(data?.id)} textColor="#ef4444">
+							Delete
+						</Button>
 					</Dialog.Actions>
 				</Dialog>
 			</Portal>
-			<Drawer containerStyle={{ height: '100%', justifyContent: 'center', alignItems: 'center' }} ref={drawer} onChange={handleSheetChanges} snapPoints={['20%']}>
-				<View style={{ flexDirection: 'column', justifyContent: 'center', alignItems: 'center', flex: 1, gap: 24 }}>
-					<Text style={{ fontSize: 16, fontWeight: '700', color: 'black' }}>Action</Text>
-					<View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-						<Button mode='contained-tonal' onPress={() => router.push({ pathname: '/edit/[id]', params: { id: data?.id } })} style={{ borderRadius: 1000 }} ><Ionicons name="pencil" size={24} color="white" />Edit</Button>
-						<Button mode='contained-tonal' onPress={() => setVisible(true)} ><Ionicons name="trash" size={24} color="white" />Delete</Button>
+
+			{/* Actions Drawer */}
+			<Drawer
+				containerStyle={{ height: '100%', justifyContent: 'center', alignItems: 'center' }}
+				ref={drawer}
+				onChange={handleSheetChanges}
+				snapPoints={['25%']}
+			>
+				<View style={styles.drawerContent}>
+					<Text style={styles.drawerTitle}>Actions</Text>
+					<View style={styles.drawerButtons}>
+						<Button
+							mode="contained-tonal"
+							onPress={() => router.push({ pathname: '/edit/[id]', params: { id: data?.id } })}
+							icon="pencil"
+							style={styles.drawerButton}
+						>
+							Edit
+						</Button>
+						<Button mode="contained-tonal" onPress={() => setVisible(true)} icon="delete" textColor="#ffffffff">
+							Delete
+						</Button>
 					</View>
 				</View>
 			</Drawer>
@@ -198,61 +283,245 @@ export default function DetailScreen() {
 }
 
 const styles = StyleSheet.create({
-	// --- Style Badge yang Diperbarui ---
-	badge: {
-		paddingHorizontal: 24,
-		paddingVertical: 6,
+	container: {
+		flex: 1,
+		backgroundColor: '#ffffff',
+	},
+	heroImageContainer: {
+		width: '100%',
+		height: 300,
+		overflow: 'hidden',
+		backgroundColor: '#f3f4f6',
+	},
+	heroImage: {
+		width: '100%',
+		height: '100%',
+	},
+	contentContainer: {
+		padding: 16,
+		gap: 24,
+	},
+	nameSection: {
+		gap: 4,
+	},
+	plantName: {
+		fontSize: 28,
+		fontWeight: '700',
+		color: '#1f2937',
+	},
+	latinName: {
+		fontSize: 16,
+		color: '#6b7280',
+		fontStyle: 'italic',
+	},
+	quickInfoContainer: {
+		flexDirection: 'row',
+		gap: 12,
+		justifyContent: 'space-between',
+	},
+	infoCard: {
+		flex: 1,
+		backgroundColor: '#f9fafb',
+		padding: 16,
+		borderRadius: 12,
+		alignItems: 'center',
+		gap: 8,
+	},
+	infoLabel: {
+		fontSize: 12,
+		color: '#374151',
+		fontWeight: '600',
+		textAlign: 'center',
+	},
+	accordionContainer: {
+		gap: 8,
+	},
+	accordion: {
+		backgroundColor: '#f9fafb',
 		borderRadius: 12,
 	},
-	// Sehat
+	accordionTitle: {
+		fontSize: 16,
+		fontWeight: '600',
+		color: '#1f2937',
+	},
+	accordionContent: {
+		paddingHorizontal: 16,
+		paddingBottom: 16,
+	},
+	accordionText: {
+		fontSize: 14,
+		lineHeight: 22,
+		color: '#4b5563',
+	},
+	timelineSection: {
+		gap: 16,
+	},
+	sectionTitle: {
+		fontSize: 20,
+		fontWeight: '700',
+		color: '#1f2937',
+	},
+	timelineItem: {
+		flexDirection: 'row',
+		gap: 12,
+	},
+	timelineIconContainer: {
+		alignItems: 'center',
+		width: 40,
+	},
+	timelineIcon: {
+		width: 40,
+		height: 40,
+		borderRadius: 20,
+		justifyContent: 'center',
+		alignItems: 'center',
+	},
+	timelineLine: {
+		flex: 1,
+		width: 2,
+		backgroundColor: '#e5e7eb',
+		marginTop: 4,
+	},
+	timelineContent: {
+		flex: 1,
+		paddingBottom: 16,
+		gap: 4,
+	},
+	timelineHeader: {
+		flexDirection: 'row',
+		justifyContent: 'space-between',
+		alignItems: 'center',
+	},
+	timelineTitle: {
+		fontSize: 16,
+		fontWeight: '600',
+		color: '#1f2937',
+		textTransform: 'capitalize',
+	},
+	conditionBadge: {
+		paddingHorizontal: 12,
+		paddingVertical: 4,
+		borderRadius: 12,
+	},
+	conditionText: {
+		fontSize: 11,
+		fontWeight: '600',
+		textTransform: 'capitalize',
+	},
+	timelineDate: {
+		fontSize: 13,
+		color: '#6b7280',
+	},
+	timelineNotes: {
+		fontSize: 14,
+		color: '#4b5563',
+		marginTop: 4,
+	},
+	emptyTimeline: {
+		alignItems: 'center',
+		paddingVertical: 48,
+		gap: 8,
+	},
+	emptyTimelineText: {
+		fontSize: 16,
+		fontWeight: '600',
+		color: '#6b7280',
+	},
+	emptyTimelineSubtext: {
+		fontSize: 14,
+		color: '#9ca3af',
+	},
+	headerButtons: {
+		position: 'absolute',
+		top: 40,
+		left: 20,
+		right: 20,
+		flexDirection: 'row',
+		justifyContent: 'space-between',
+	},
+	iconButton: {
+		backgroundColor: 'rgba(0,0,0,0.5)',
+		padding: 10,
+		borderRadius: 24,
+		width: 44,
+		height: 44,
+		justifyContent: 'center',
+		alignItems: 'center',
+	},
+	bottomButtonContainer: {
+		position: 'absolute',
+		bottom: 0,
+		left: 0,
+		right: 0,
+		paddingHorizontal: 16,
+		paddingVertical: 16,
+		backgroundColor: 'white',
+		borderTopWidth: 1,
+		borderTopColor: '#f3f4f6',
+	},
+	addProgressButton: {
+		flexDirection: 'row',
+		backgroundColor: '#10b981',
+		paddingVertical: 16,
+		borderRadius: 12,
+		justifyContent: 'center',
+		alignItems: 'center',
+		gap: 8,
+	},
+	addProgressText: {
+		color: 'white',
+		fontWeight: '700',
+		fontSize: 16,
+	},
+	drawerContent: {
+		flex: 1,
+		justifyContent: 'center',
+		alignItems: 'center',
+		gap: 24,
+		paddingHorizontal: 16,
+	},
+	drawerTitle: {
+		fontSize: 18,
+		fontWeight: '700',
+		color: '#1f2937',
+	},
+	drawerButtons: {
+		flexDirection: 'row',
+		gap: 12,
+	},
+	drawerButton: {
+		borderRadius: 12,
+	},
+	// Condition Badge Styles
 	badgeHealthy: {
-		backgroundColor: '#4ade80', // Hijau
+		backgroundColor: '#d1fae5',
 	},
 	textHealthy: {
-		color: '#14532d', // Hijau Tua
+		color: '#065f46',
 	},
-	// Masalah Air (Layu, Kekurangan/Kelebihan Air, Menguning)
 	badgeWaterIssue: {
-		backgroundColor: '#fbbf24', // Kuning/Amber
+		backgroundColor: '#fef3c7',
 	},
 	textWaterIssue: {
-		color: '#78350f', // Coklat Tua
+		color: '#78350f',
 	},
-	// Serangan (Hama, Jamur)
 	badgeInfestation: {
-		backgroundColor: '#f87171', // Merah
+		backgroundColor: '#fee2e2',
 	},
 	textInfestation: {
-		color: '#7f1d1d', // Merah Tua
+		color: '#991b1b',
 	},
-	// Terbakar Matahari
 	badgeSunburnt: {
-		backgroundColor: '#fb923c', // Oranye
+		backgroundColor: '#fed7aa',
 	},
 	textSunburnt: {
-		color: '#7c2d12', // Oranye Tua
+		color: '#9a3412',
 	},
-	// Default jika kondisi tidak dikenali
 	badgeDefault: {
-		backgroundColor: '#e5e5e5', // Abu-abu
+		backgroundColor: '#f3f4f6',
 	},
 	textDefault: {
-		color: '#525252', // Abu-abu Tua
-		fontWeight: '600',
-		fontSize: 12,
-		textTransform: 'capitalize'
+		color: '#6b7280',
 	},
-	// --- Style Lainnya ---
-	container: { flex: 1 },
-	name: { color: "black", fontSize: 24, fontWeight: "700" },
-	careInstructionContainer: {
-		marginTop: 8, padding: 16, backgroundColor: '#f9f9f9', borderRadius: 8, borderLeftWidth: 4, borderLeftColor: '#379f20ff',
-	},
-	careInstructionTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 8, color: '#333' },
-	careInstructionText: { marginBottom: 8, fontSize: 16, lineHeight: 24, color: '#555' },
-	saveButtonFixedContainer: {
-		position: "absolute", bottom: 0, left: 0, right: 0, paddingHorizontal: 16, flexDirection: 'row', gap: 8, paddingVertical: 16, backgroundColor: "white", borderTopWidth: 1, borderTopColor: '#eee',
-	},
-	saveButton: { flex: 1, backgroundColor: "#379f20ff", paddingVertical: 16, borderRadius: 8, justifyContent: "center", alignItems: "center", },
-	saveButtonText: { color: "white", fontWeight: "bold", fontSize: 16, },
 });
